@@ -1,0 +1,6 @@
+{
+  "name": "detikcom Terupdate",
+  "description": "An interactive, fully featured news reader inspired by detikcom, featuring live categories, vertical story reels, dynamic story viewers, detailed reading views, and an integrated detikAI companion for smart search and articles analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
