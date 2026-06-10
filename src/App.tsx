@@ -43,8 +43,8 @@ export default function App() {
   // Search filter query
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Floating AI companion open state
-  const [isAiCompanionOpen, setIsAiCompanionOpen] = useState(false);
+  // AI mode clean state
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
 
   // Active story reels viewer ID
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
@@ -159,67 +159,78 @@ export default function App() {
         </button>
       </div>
 
-      <div className={`w-full flex flex-col justify-between bg-white text-[#1b1b1d] shadow-xl transition-all duration-300 ${
+      <div className={`w-full flex flex-col justify-between bg-white text-[#1b1b1d] shadow-xl transition-all duration-300 relative ${
         deviceFrameMode 
-          ? 'max-w-[430px] h-[884px] rounded-3xl border-[8px] border-neutral-900 relative overflow-hidden' 
+          ? 'max-w-[430px] h-[884px] rounded-3xl border-[8px] border-neutral-900 overflow-hidden' 
           : 'min-h-screen'
-      }`}>
+      } ${activeBottomNav === 'milidetik' && !deviceFrameMode ? 'h-screen overflow-hidden' : ''}`}>
 
-        <div className={`flex-grow flex flex-col ${deviceFrameMode ? 'overflow-y-auto no-scrollbar pb-24' : ''}`}>
+        <div className={`flex-grow flex flex-col min-h-0 relative ${
+          deviceFrameMode 
+            ? activeBottomNav === 'milidetik' 
+              ? 'h-full overflow-hidden pb-16' 
+              : 'overflow-y-auto no-scrollbar pb-24' 
+            : activeBottomNav === 'milidetik' 
+              ? 'h-full overflow-hidden pb-16' 
+              : ''
+        }`}>
 
-          {/* ======================= DETIK APP HEADER (TopAppBar) ======================= */}
-          <header className="bg-white text-primary text-headline-lg-mobile font-extrabold flex justify-between items-center w-full px-4 py-3 sticky top-0 z-40 bg-opacity-95 backdrop-blur-sm border-b border-stone-100 select-none">
-            <button 
-              onClick={() => setIsCategoryDrawerOpen(true)}
-              aria-label="Menu" 
-              className="text-neutral-800 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
-            >
-              <BookOpen size={24} />
-            </button>
+          {/* ======================= DETIK APP HEADER & MULTI-NAVBAR (Sticky joint container) ======================= */}
+          <div className="sticky top-0 z-40 bg-white border-b border-stone-100 select-none bg-opacity-95 backdrop-blur-sm">
+            {/* TopAppBar */}
+            <header className="bg-white text-primary text-headline-lg-mobile font-extrabold flex justify-between items-center w-full px-4 py-3">
+              <button 
+                onClick={() => setIsCategoryDrawerOpen(true)}
+                aria-label="Menu" 
+                className="text-neutral-800 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
+              >
+                <BookOpen size={24} />
+              </button>
 
-            {/* detikcom Brand Trademark Identity */}
-            <div 
-              onClick={() => { setActiveArticleId(null); setActiveBottomNav('home'); }}
-              className="flex items-center justify-center cursor-pointer hover:scale-102 transition-transform"
-            >
-              <span className="text-[#1a4d98] font-headline font-extrabold text-[26px] tracking-tighter leading-none">
-                detik<span className="text-[#ff4f00]">com</span>
-              </span>
-            </div>
+              {/* detikcom Brand Trademark Identity */}
+              <div 
+                onClick={() => { setActiveArticleId(null); setActiveBottomNav('home'); }}
+                className="flex items-center justify-center cursor-pointer hover:scale-102 transition-transform"
+              >
+                <span className="text-[#1a4d98] font-headline font-extrabold text-[26px] tracking-tighter leading-none">
+                  detik<span className="text-[#ff4f00]">com</span>
+                </span>
+              </div>
 
-            <button 
-              onClick={() => setIsUserProfileOpen(true)}
-              aria-label="Profile" 
-              className="text-neutral-500 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
-            >
-              <User size={24} className="text-neutral-400" />
-            </button>
-          </header>
+              <button 
+                onClick={() => setIsUserProfileOpen(true)}
+                aria-label="Profile" 
+                className="text-neutral-500 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
+              >
+                <User size={24} className="text-neutral-400" />
+              </button>
+            </header>
 
-          {/* ======================= TABS CATEGORIES (Sticky secondary sub-nav) ======================= */}
-          {activeBottomNav === 'home' && !activeArticleId && (
-            <nav className="bg-white border-b border-neutral-100 flex space-x-6 px-4 py-2.5 overflow-x-auto whitespace-nowrap no-scrollbar sticky top-[53px] z-30 bg-opacity-95 backdrop-blur-sm select-none shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-              {(['Terupdate', 'Rekomendasi', 'Populer', 'Lifestyle'] as const).map((tab) => {
-                const isActive = currentCategoryTab === tab;
-                return (
-                  <button 
-                    key={tab}
-                    onClick={() => setCurrentCategoryTab(tab)}
-                    className={`font-headline text-[13px] font-extrabold pb-1.5 px-0.5 border-b-2 transition-all ${
-                      isActive 
-                        ? 'text-[#1a4d98] border-[#1a4d98]' 
-                        : 'text-neutral-400 border-transparent hover:text-[#1a4d98]'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
+            {/* ======================= TABS CATEGORIES (Joint sticky sub-nav, no complex offsets) ======================= */}
+            {activeBottomNav === 'home' && !activeArticleId && (
+              <nav className="bg-white border-t border-neutral-100 flex space-x-6 px-4 py-2.5 overflow-x-auto whitespace-nowrap no-scrollbar select-none shadow-[0_1px_3px_rgba(0,0,0,0.01)] items-center justify-start">
+                {(['Terupdate', 'Rekomendasi', 'Populer', 'Lifestyle'] as const).map((tab) => {
+                  const isActive = currentCategoryTab === tab;
+                  return (
+                    <button 
+                      key={tab}
+                      onClick={() => setCurrentCategoryTab(tab)}
+                      className={`font-headline text-[13px] font-extrabold pb-1.5 px-0.5 border-b-2 transition-all cursor-pointer ${
+                        isActive 
+                          ? 'text-[#1a4d98] border-[#1a4d98]' 
+                          : 'text-neutral-400 border-transparent hover:text-[#1a4d98]'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
+          </div>
 
           {/* ======================= MAIN WORKSPACE LAYOUT ======================= */}
-          <main className="flex-grow">
+          <main className={`flex-grow ${activeBottomNav === 'milidetik' ? 'flex flex-col min-h-0' : ''}`}>
             
             {/* If there is an active article open for details reading view */}
             {activeArticleId && currentOpenArticle ? (
@@ -488,10 +499,13 @@ export default function App() {
                   </div>
                 )}
 
-                {/* 3. MILIDETIK AI INSIGHTS MODULE */}
+                {/* 3. MILIDETIK VERTICAL EXPERIENCE PRODUCT */}
                 {activeBottomNav === 'milidetik' && (
-                  <div className="mb-24">
-                    <MilidetikTab />
+                  <div className="w-full h-full flex-grow">
+                    <MilidetikTab onReadArticle={(id) => {
+                      setActiveArticleId(id);
+                      setActiveBottomNav('home');
+                    }} />
                   </div>
                 )}
 
@@ -562,10 +576,7 @@ export default function App() {
 
         </div>
 
-        {/* ======================= CHAT COMPANION DIALOG PORTAL ======================= */}
-        {isAiCompanionOpen && (
-          <AICompanion onClose={() => setIsAiCompanionOpen(false)} />
-        )}
+        {/* ======================= CHAT COMPANION DIALOG PORTAL (Removed floating absolute overlay) ======================= */}
 
         {/* ======================= REEL FULL STORY EXPERIENCES ======================= */}
         {activeReelId && (
@@ -576,13 +587,16 @@ export default function App() {
           />
         )}
 
-        {/* ======================= FLOATING ACTION BUTTON (detikAI) ======================= */}
-        {!isAiCompanionOpen && (
+        {/* ======================= PREMIUM SHORTCUT FLOATING KEY (detikAI launcher) ======================= */}
+        {!isAiChatOpen && (
           <button 
-            onClick={() => setIsAiCompanionOpen(true)}
+            onClick={() => {
+              setIsAiChatOpen(true);
+            }}
+            aria-label="Tanya detikAI"
             className="fixed md:absolute bottom-20 right-4 w-14 h-14 bg-gradient-to-tr from-[#1a4d98] via-[#003e6f] to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center z-40 hover:scale-105 active:scale-95 group transition-transform active:rotate-3 select-none cursor-pointer"
           >
-            <span className="font-headline font-black text-lg tracking-tight">AI</span>
+            <span className="font-headline font-black text-lg tracking-tight font-extrabold text-white">AI</span>
             {/* Pulsing visual outline */}
             <div className="absolute inset-0 rounded-full border border-white/30 animate-ping opacity-25" />
             <div className="absolute inset-0 rounded-full border border-white/10" />
@@ -593,9 +607,29 @@ export default function App() {
           </button>
         )}
 
+        {/* ======================= FULLSCREEN DETIKAI COMPANION PANEL ======================= */}
+        {isAiChatOpen && (
+          <>
+            {/* Dark blurred backdrop on desktop screen */}
+            {!deviceFrameMode && (
+              <div 
+                onClick={() => setIsAiChatOpen(false)}
+                className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-50 cursor-pointer hidden md:block" 
+              />
+            )}
+            <div className={`z-50 flex flex-col justify-between overflow-hidden ${
+              deviceFrameMode 
+                ? 'absolute inset-0 bg-white rounded-2xl' 
+                : 'fixed inset-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[460px] md:h-[720px] bg-white md:rounded-3xl md:shadow-2xl md:border md:border-stone-150'
+            }`}>
+              <AICompanion onBackToHome={() => setIsAiChatOpen(false)} embedMode={true} />
+            </div>
+          </>
+        )}
+
         {/* ======================= FLOATING BREAKING NEWS TICKER ======================= */}
-        {!dismissedBreaking && !activeArticleId && (
-          <div className="fixed md:absolute bottom-16 left-0 right-0 px-4 py-2 flex justify-end z-30 pointer-events-none select-none">
+        {!dismissedBreaking && !activeArticleId && activeBottomNav !== 'milidetik' && (
+          <div className="fixed md:absolute bottom-16 left-0 right-0 px-4 py-2 flex justify-start z-30 pointer-events-none select-none">
             <div className="bg-red-600 text-white rounded-full pl-3 pr-4 py-1.5 flex items-center space-x-2 shadow-lg pointer-events-auto cursor-pointer border border-red-500 hover:scale-[1.01] transition-transform">
               <span className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-pulse border border-red-600"></span>
               <span 
@@ -616,7 +650,9 @@ export default function App() {
         )}
 
         {/* ======================= BOTTOM MOBILE NAVIGATION DOCK ======================= */}
-        <nav className="bg-white text-neutral-400 border-t border-neutral-100 shadow-xl fixed md:absolute bottom-0 left-0 w-full flex justify-around items-center px-1 py-1.5 pb-safe z-40 select-none">
+        <nav className={`bg-white text-neutral-400 border-t border-neutral-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] ${
+          deviceFrameMode ? 'absolute' : 'fixed'
+        } bottom-0 left-0 right-0 w-full flex justify-around items-center px-1 py-1.5 pb-safe z-40 select-none`}>
           
           <button 
             onClick={() => handleNavSelect('home')}
