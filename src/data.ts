@@ -216,3 +216,68 @@ export const BREAKING_NEWS_TICKER = {
   title: 'BREAKING NEWS: Gempa Magnitudo 5.2 Guncang Malang, Tidak Berpotensi Tsunami',
   link: '#'
 };
+
+export const ARTICLE_SUGGESTIONS_MAP: Record<string, string[]> = {
+  'art-1': [
+    'Siapa pelaku perusakan lift JPO?',
+    'Bagaimana tanggapan warga di JPO Lenteng Agung?',
+    'Kapan fasilitas umum ini direncanakan aktif kembali?',
+    'Apa komentar Pramono Anung tentang pelaku?',
+    'Bagaimana cara Pemprov DKI mencegah vandalisme JPO?'
+  ],
+  'art-2': [
+    'Siapa sasaran utama pemutihan iuran BPJS?',
+    'Bagaimana respon rumah sakit terhadap penghapusan?',
+    'Kapan putusan resmi BPJS ini akan diluncurkan?',
+    'Metode apa untuk cek tunggakan BPJS mandiri?',
+    'Apa pengaruh putusan ini terhadap pelayanan medis?'
+  ],
+  'art-3': [
+    'Siapa kandidat terkuat pengganti Tim Cook di Apple?',
+    'Apa saja isi pesan haru dari memo Tim Cook?',
+    'Bagaimana reaksi pasar saham terhadap transisi CEO?',
+    'Berapa lama Tim Cook memimpin Apple?',
+    'Apa tantangan terbesar CEO penerus Apple kelak?'
+  ],
+  'art-4': [
+    'Bagaimana cara kerja AI menganalisis kulit sensitif?',
+    'Apa komentar Nikita Willy tentang sensor kulit portable?',
+    'Berapa lama proses deteksi kulit menggunakan AI?',
+    'Bagaimana AI ini membantu pemilihan skincare?',
+    'Dimana pameran kecantikan teknologi ini diadakan?'
+  ],
+  'art-5': [
+    'Berapa target gol Lamine Yamal di Piala Dunia 2026?',
+    'Bagaimana andalan taktik Spanyol bersama Yamal?',
+    'Apa pendapat pelatih Spanyol tentang mentalitas Yamal?',
+    'Mengapa Lamine Yamal dijuluki ikon sepak bola baru?',
+    'Apakah tim La Roja difavoritkan juara grup?'
+  ],
+  'trending-1': [
+    'Mengapa emiten energi baru terbarukan (EBT) melonjak?',
+    'Apa isi regulasi insentif pajak kendaraan listrik?',
+    'Bagaimana dampak adopsi EBT terhadap indeks saham?',
+    'Sektor saham apa saja yang diuntungkan relaksasi ini?',
+    'Apakah tren penguatan bursa berlanjut bulan depan?'
+  ],
+  'trending-2': [
+    'Apa itu fenomena embun upas dingin ekstrem di Dieng?',
+    'Kapan waktu terbaik melihat matahari terbit di Sikunir?',
+    'Mengapa kawasan Dieng dijuluki negeri di atas awan?',
+    'Aktivitas menarik apa saja di kawasan wisata Dieng?',
+    'Bagaimana panduan keselamatan wisata udara dingin Dieng?'
+  ]
+};
+
+export const DEFAULT_SUGGESTIONS: string[] = [
+  'Rangkum poin utama berita ini ✨',
+  'Mengapa berita ini penting untuk disimak?',
+  'Beri latar belakang peristiwa dalam artikel ini',
+  'Siapa saja pihak utama yang terlibat di artikel?',
+  'Bagaimana tanggapan publik secara umum?'
+];
+
+export function getArticleSuggestions(articleId: string | undefined | null): string[] {
+  if (!articleId) return DEFAULT_SUGGESTIONS;
+  return ARTICLE_SUGGESTIONS_MAP[articleId] || DEFAULT_SUGGESTIONS;
+}

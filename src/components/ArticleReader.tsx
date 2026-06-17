@@ -2,15 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Article, Comment } from '../types';
 import { ArrowLeft, User, Calendar, Flame, Eye, ThumbsUp, MessageCircle, Heart, Share2, Sparkles, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { OTHER_TRENDING_NEWS, ARTICLE_SUGGESTIONS_MAP } from '../data';
 
 interface ArticleReaderProps {
   article: Article;
   onBack: () => void;
   onAddComment: (articleId: string, newComment: Comment) => void;
   onLikeArticle: (articleId: string) => void;
+  onSearchAi?: (query: string) => void;
+  onReadArticle?: (articleId: string) => void;
 }
 
-export default function ArticleReader({ article, onBack, onAddComment, onLikeArticle }: ArticleReaderProps) {
+export default function ArticleReader({ article, onBack, onAddComment, onLikeArticle, onSearchAi, onReadArticle }: ArticleReaderProps) {
   const [commentText, setCommentText] = useState('');
   const [newsQuery, setNewsQuery] = useState('');
   const [newsAnswer, setNewsAnswer] = useState('');
@@ -121,7 +124,7 @@ export default function ArticleReader({ article, onBack, onAddComment, onLikeArt
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-4xl mx-auto px-4 pt-6 pb-28 md:pb-36">
       
       {/* Back to feed header */}
       <button 
@@ -173,53 +176,17 @@ export default function ArticleReader({ article, onBack, onAddComment, onLikeArt
         />
       </div>
 
-      {/* DUAL COLS: Left Content / Right AI Widget */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Editorial Single Column Block (Optimized reading viewport) */}
+      <div className="max-w-3xl mx-auto w-full flex flex-col space-y-5 text-neutral-800 text-sm md:text-base leading-relaxed">
         
-        {/* Left main content col */}
-        <div className="lg:col-span-8 flex flex-col space-y-5 text-neutral-800 text-sm md:text-base leading-relaxed">
-          
-          {/* Smart AI Summary Block */}
-          <div className="bg-[#f0edef]/60 rounded-xl p-4 md:p-5 border border-purple-200/50 my-2">
-            <div className="flex items-center space-x-2 mb-3">
-              <Sparkles size={16} className="text-purple-600 fill-purple-100" />
-              <h3 className="font-headline font-bold text-sm text-purple-950 uppercase tracking-wider">
-                Rangkuman Berita detikAI (Terangkum Kilat)
-              </h3>
-            </div>
-
-            {isSummarizing ? (
-              <div className="space-y-2 py-2">
-                <div className="h-3 bg-purple-100 rounded animate-pulse w-11/12" />
-                <div className="h-3 bg-purple-100 rounded animate-pulse w-full" />
-                <div className="h-3 bg-purple-100 rounded animate-pulse w-5/6" />
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {aiSummary.map((item, index) => (
-                  <motion.li 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    key={index} 
-                    className="flex items-start text-xs md:text-sm text-neutral-700 font-medium"
-                  >
-                    <span className="text-purple-600 mr-2 shrink-0 select-none font-bold">✔</span>
-                    <span className="leading-relaxed">{item}</span>
-                  </motion.li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Actual Article Paragraphs */}
-          <div className="space-y-4">
-            {article.content.map((p, idx) => (
-              <p key={idx} className="text-neutral-800 leading-relaxed font-normal text-justify">
-                {p}
-              </p>
-            ))}
-          </div>
+        {/* Actual Article Paragraphs */}
+        <div className="space-y-4">
+          {article.content.map((p, idx) => (
+            <p key={idx} className="text-neutral-800 leading-relaxed font-normal text-justify">
+              {p}
+            </p>
+          ))}
+        </div>
 
           {/* Social interact buttons */}
           <div className="border-t border-b border-neutral-200 py-4 my-6 flex flex-wrap gap-4 items-center justify-between">
@@ -257,6 +224,73 @@ export default function ArticleReader({ article, onBack, onAddComment, onLikeArt
               <Share2 size={14} className="text-neutral-400" />
               <span>Bagikan Artikel</span>
             </div>
+          </div>
+
+          {/* Ask detikAI Contextual Prompting Section */}
+          <div id="detikai-article-card" className="bg-gradient-to-br from-purple-50 via-indigo-50/40 to-white border border-purple-200 p-5 rounded-2xl shadow-sm my-6">
+            <div className="flex items-center space-x-2 mb-2">
+              <Sparkles size={16} className="text-purple-600 animate-pulse fill-purple-100" />
+              <h4 className="font-headline font-extrabold text-xs uppercase tracking-wider text-purple-950">
+                Tanya detikAI tentang Berita Ini
+              </h4>
+            </div>
+
+            <p className="text-[11px] text-purple-900 leading-relaxed mb-4 font-semibold">
+              Butuh penjelasan eksklusif? Ketik pertanyaan Anda di bawah atau tap salah satu usulan pertanyaan untuk berpindah langsung ke panduan asisten detikAI:
+            </p>
+
+            {/* Suggestions list */}
+            <div className="flex gap-2 flex-wrap mb-4">
+              {(ARTICLE_SUGGESTIONS_MAP[article.id] || [
+                `Apa temuan utama dalam topik "${article.title}"?`,
+                `Ringkas berita ini secara lengkap ✨`,
+                `Apa implikasi penting dari kejadian ini?`,
+                `Siapa saja tokoh kunci dalam artikel?`,
+                `Apa latar belakang kronologi ini?`
+              ]).map((suggestion, sIdx) => (
+                <button
+                  key={sIdx}
+                  onClick={() => {
+                    if (onSearchAi) {
+                      onSearchAi(suggestion);
+                    }
+                  }}
+                  type="button"
+                  className="bg-white hover:bg-purple-650 hover:text-white text-purple-950 text-[11px] font-bold py-2 px-3.5 rounded-xl border border-purple-200/60 shadow-xs transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer select-none flex items-center space-x-1"
+                >
+                  <span className="text-purple-500 hover:text-white group-hover:text-white mr-1">✨</span>
+                  <span>{suggestion}</span>
+                </button>
+              ))}
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newsQuery.trim()) {
+                  if (onSearchAi) {
+                    onSearchAi(newsQuery.trim());
+                    setNewsQuery('');
+                  }
+                }
+              }} 
+              className="flex items-center space-x-2 bg-white rounded-xl p-1.5 border border-purple-200 shadow-inner"
+            >
+              <input 
+                type="text" 
+                placeholder="Ajukan pertanyaan Anda kepada detikAI..."
+                value={newsQuery}
+                onChange={(e) => setNewsQuery(e.target.value)}
+                className="flex-grow bg-transparent text-xs px-3 focus:outline-none placeholder-purple-300 font-sans font-extrabold text-neutral-800"
+              />
+              <button
+                type="submit"
+                disabled={!newsQuery.trim()}
+                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white p-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-md h-8 px-3"
+              >
+                Tanyakan
+              </button>
+            </form>
           </div>
 
           {/* Discussion Box & User Comment form */}
@@ -316,73 +350,41 @@ export default function ArticleReader({ article, onBack, onAddComment, onLikeArt
             </div>
           </div>
 
-        </div>
-
-        {/* Right side contextual AI widgets */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* Ask detikAI specifically about this article content widget */}
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50/70 border border-purple-200/50 p-4 rounded-2xl shadow-sm sticky top-[130px]">
-            <div className="flex items-center space-x-1.5 mb-3">
-              <Sparkles size={16} className="text-purple-600 animate-pulse fill-purple-100" />
-              <h4 className="font-headline font-extrabold text-xs uppercase tracking-wide text-purple-950">
-                Tanya detikAI (Konteks Berita)
-              </h4>
+          {/* Berita Populer Lainnya (Relocated beautifully below comments) */}
+          <div className="mt-12 pt-8 border-t border-neutral-200">
+            <div className="flex items-center space-x-2 mb-5">
+              <span className="text-xs font-black uppercase text-[#1a4d98] tracking-widest">Berita Populer Lainnya</span>
+              <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
             </div>
 
-            <p className="text-[11px] text-purple-900 leading-relaxed mb-4 font-medium">
-              Butuh klarifikasi atau penasaran tentang tokoh/lokasi dalam berita ini? Ajukan pertanyaan bebas di bawah!
-            </p>
-
-            <form onSubmit={askDetikAIAboutArticle} className="space-y-2">
-              <input 
-                type="text" 
-                placeholder="Siapa Pramono Anung?..."
-                value={newsQuery}
-                onChange={(e) => setNewsQuery(e.target.value)}
-                className="w-full bg-white border border-neutral-200 rounded-lg p-2.5 text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-400 shadow-inner"
-              />
-              <button 
-                type="submit"
-                disabled={isAsking || !newsQuery.trim()}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 transition-all shadow-sm select-none"
-              >
-                {isAsking ? (
-                  <span>Berpikir...</span>
-                ) : (
-                  <>
-                    <Sparkles size={12} />
-                    <span>Analisis Kabar</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Answer Display */}
-            <AnimatePresence>
-              {newsAnswer && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="mt-4 bg-white/90 border border-purple-100 p-3.5 rounded-xl text-xs text-neutral-800 text-left leading-relaxed shadow-sm"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {OTHER_TRENDING_NEWS.map((trend) => (
+                <div 
+                  key={trend.id}
+                  onClick={() => {
+                    if (onReadArticle) {
+                      onReadArticle(trend.id);
+                      const scroller = document.querySelector('.overflow-y-auto');
+                      if (scroller) {
+                        scroller.scrollTo({ top: 0, behavior: 'smooth' });
+                      } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className="group cursor-pointer p-4 bg-white hover:bg-neutral-50/50 rounded-2xl border border-neutral-200 hover:border-neutral-300 shadow-xs hover:shadow-sm transition-all duration-300 flex flex-col justify-between h-full hover:-translate-y-0.5 active:scale-98"
                 >
-                  <div className="flex items-center justify-between mb-2 pb-1 border-b border-purple-50 text-[10px] text-purple-600 font-extrabold uppercase">
-                    <span>Analisis detikAI:</span>
-                    <button 
-                      onClick={() => setNewsAnswer('')}
-                      className="text-neutral-400 hover:text-neutral-600"
-                    >
-                      tutup
-                    </button>
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-[9px] font-black text-[#ff4f00] uppercase tracking-wider">{trend.category}</span>
+                    <h5 className="font-headline font-semibold text-xs md:text-[13px] text-neutral-800 leading-snug line-clamp-2 group-hover:text-[#1a4d98] transition-colors">
+                      {trend.title}
+                    </h5>
                   </div>
-                  <p className="font-medium text-neutral-700 text-justify">{newsAnswer}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <span className="text-[9px] text-neutral-400 font-mono mt-3 self-start">{trend.readsCount.toLocaleString('id-ID')} views</span>
+                </div>
+              ))}
+            </div>
           </div>
-
-        </div>
 
       </div>
 

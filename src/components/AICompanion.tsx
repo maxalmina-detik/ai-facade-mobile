@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface AICompanionProps {
   onBackToHome?: () => void;
   embedMode?: boolean;
+  initialQuery?: string;
 }
 
 interface ChatSession {
@@ -22,7 +23,7 @@ const SUGGESTED_PROMPTS = [
   'Bagaimana penerapan AI kecantikan kulit?'
 ];
 
-export default function AICompanion({ onBackToHome, embedMode = true }: AICompanionProps) {
+export default function AICompanion({ onBackToHome, embedMode = true, initialQuery }: AICompanionProps) {
   // Load sessions from localStorage
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     const saved = localStorage.getItem('detikai_chat_sessions');
@@ -45,6 +46,88 @@ export default function AICompanion({ onBackToHome, embedMode = true }: AICompan
   const [loading, setLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-run when an initialQuery is passed
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim()) {
+      const textToQuery = initialQuery.trim();
+      
+      const triggerAutomaticQuery = async () => {
+        const targetId = `session-${Date.now()}`;
+        
+        const welcomeMsg: ChatMessage = {
+          id: `msg-welcome-${Date.now()}`,
+          sender: 'ai',
+          text: 'Halo! Saya detikAI, siap membimbing Anda mengupas berita ini secara tuntas.',
+          timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        const userMsg: ChatMessage = {
+          id: `msg-user-auto-${Date.now()}`,
+          sender: 'user',
+          text: textToQuery,
+          timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        const initialMessages = [welcomeMsg, userMsg];
+        const newSession: ChatSession = {
+          id: targetId,
+          title: textToQuery.length > 25 ? textToQuery.substring(0, 25) + '...' : textToQuery,
+          timestamp: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+          messages: initialMessages
+        };
+
+        setSessions(prev => {
+          const updated = [newSession, ...prev];
+          localStorage.setItem('detikai_chat_sessions', JSON.stringify(updated));
+          return updated;
+        });
+        setActiveSessionId(targetId);
+        localStorage.setItem('detikai_active_session_id', targetId);
+
+        setLoading(true);
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [
+                { sender: 'ai', text: welcomeMsg.text },
+                { sender: 'user', text: textToQuery }
+              ]
+            })
+          });
+          const data = await res.json();
+          const aiMsg: ChatMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'ai',
+            text: data.text || 'Gagal merespon. Mohon coba tanyakan kembali.',
+            timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          };
+
+          setSessions(prev => {
+            const next = prev.map(s => {
+              if (s.id === targetId) {
+                return {
+                  ...s,
+                  messages: [...s.messages, aiMsg]
+                };
+              }
+              return s;
+            });
+            localStorage.setItem('detikai_chat_sessions', JSON.stringify(next));
+            return next;
+          });
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      triggerAutomaticQuery();
+    }
+  }, [initialQuery]);
 
   // Fallback initial welcome message structure
   const createNewMessagesList = (): ChatMessage[] => [

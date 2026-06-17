@@ -3,7 +3,9 @@ import {
   INITIAL_REELS, 
   INITIAL_ARTICLES, 
   OTHER_TRENDING_NEWS, 
-  BREAKING_NEWS_TICKER 
+  BREAKING_NEWS_TICKER,
+  ARTICLE_SUGGESTIONS_MAP,
+  DEFAULT_SUGGESTIONS
 } from './data';
 import { Article, Reel, Comment } from './types';
 import ReelViewer from './components/ReelViewer';
@@ -30,6 +32,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+const FLOATING_SUGGESTIONS = [
+  "Rangkum berita terpopuler hari ini ✨",
+  "Ada isu viral apa yang lagi ramai?",
+  "Analisis dampak rupiah menguat saat ini",
+  "Kapan Timnas Indonesia tanding lagi?",
+  "Beri rekomendasi kuliner hits Jakarta"
+];
+
 export default function App() {
   // Mobile frame container vs fluid full screen state
   const [deviceFrameMode, setDeviceFrameMode] = useState(false);
@@ -45,12 +55,35 @@ export default function App() {
 
   // AI mode clean state
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
-
-  // Active story reels viewer ID
-  const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  const [aiInitialQuery, setAiInitialQuery] = useState<string | undefined>(undefined);
+  // Hide launcher if embedded detikAI card is on display
+  const [isAiCardIntersecting, setIsAiCardIntersecting] = useState(false);
 
   // Active reading article ID (null means index list)
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
+
+  // Active query suggestion index for the floating launcher
+  const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(0);
+
+  // We derive the active suggestions list dynamically
+  const currentSuggestions = activeArticleId 
+    ? (ARTICLE_SUGGESTIONS_MAP[activeArticleId] || DEFAULT_SUGGESTIONS)
+    : FLOATING_SUGGESTIONS;
+
+  useEffect(() => {
+    setActiveSuggestionIdx(0);
+  }, [activeArticleId]);
+
+  useEffect(() => {
+    if (isAiChatOpen || activeBottomNav === 'milidetik') return;
+    const interval = setInterval(() => {
+      setActiveSuggestionIdx((prev) => (prev + 1) % currentSuggestions.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [isAiChatOpen, activeBottomNav, currentSuggestions.length]);
+
+  // Active story reels viewer ID
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
   // User Profile dialog
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
@@ -75,6 +108,42 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('detikcom_articles', JSON.stringify(articles));
   }, [articles]);
+
+  // Observer to track if the inline detikAI promoter card is visible before target comments
+  useEffect(() => {
+    let observer: IntersectionObserver | null = null;
+    let timeoutId: any = null;
+
+    const setupObserver = () => {
+      const target = document.getElementById('detikai-article-card');
+      if (target) {
+        observer = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            setIsAiCardIntersecting(entry.isIntersecting);
+          }
+        }, {
+          root: null,
+          rootMargin: "0px 0px -40px 0px", // triggers when card is near the float button region
+          threshold: 0.05
+        });
+        observer.observe(target);
+      } else {
+        setIsAiCardIntersecting(false);
+      }
+    };
+
+    // Brief timeout to let React finish rendering the new article
+    timeoutId = setTimeout(setupObserver, 300);
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [activeArticleId, activeBottomNav]);
 
   const handleAddComment = (articleId: string, newComment: Comment) => {
     setArticles(prev => prev.map(art => {
@@ -163,71 +232,73 @@ export default function App() {
         deviceFrameMode 
           ? 'max-w-[430px] h-[884px] rounded-3xl border-[8px] border-neutral-900 overflow-hidden' 
           : 'min-h-screen'
-      } ${activeBottomNav === 'milidetik' && !deviceFrameMode ? 'h-screen overflow-hidden' : ''}`}>
+      } ${activeBottomNav === 'milidetik' && !deviceFrameMode && !isAiChatOpen ? 'h-screen overflow-hidden' : ''}`}>
 
         <div className={`flex-grow flex flex-col min-h-0 relative ${
           deviceFrameMode 
             ? activeBottomNav === 'milidetik' 
               ? 'h-full overflow-hidden pb-16' 
               : 'overflow-y-auto no-scrollbar pb-24' 
-            : activeBottomNav === 'milidetik' 
+            : activeBottomNav === 'milidetik' && !isAiChatOpen
               ? 'h-full overflow-hidden pb-16' 
               : ''
         }`}>
 
           {/* ======================= DETIK APP HEADER & MULTI-NAVBAR (Sticky joint container) ======================= */}
-          <div className="sticky top-0 z-40 bg-white border-b border-stone-100 select-none bg-opacity-95 backdrop-blur-sm">
-            {/* TopAppBar */}
-            <header className="bg-white text-primary text-headline-lg-mobile font-extrabold flex justify-between items-center w-full px-4 py-3">
-              <button 
-                onClick={() => setIsCategoryDrawerOpen(true)}
-                aria-label="Menu" 
-                className="text-neutral-800 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
-              >
-                <BookOpen size={24} />
-              </button>
+          {activeBottomNav !== 'milidetik' && (
+            <div className="sticky top-0 z-40 bg-white border-b border-stone-100 select-none bg-opacity-95 backdrop-blur-sm">
+              {/* TopAppBar */}
+              <header className="bg-white text-primary text-headline-lg-mobile font-extrabold flex justify-between items-center w-full px-4 py-3">
+                <button 
+                  onClick={() => setIsCategoryDrawerOpen(true)}
+                  aria-label="Menu" 
+                  className="text-neutral-800 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
+                >
+                  <BookOpen size={24} />
+                </button>
 
-              {/* detikcom Brand Trademark Identity */}
-              <div 
-                onClick={() => { setActiveArticleId(null); setActiveBottomNav('home'); }}
-                className="flex items-center justify-center cursor-pointer hover:scale-102 transition-transform"
-              >
-                <span className="text-[#1a4d98] font-headline font-extrabold text-[26px] tracking-tighter leading-none">
-                  detik<span className="text-[#ff4f00]">com</span>
-                </span>
-              </div>
+                {/* detikcom Brand Trademark Identity */}
+                <div 
+                  onClick={() => { setActiveArticleId(null); setActiveBottomNav('home'); }}
+                  className="flex items-center justify-center cursor-pointer hover:scale-102 transition-transform"
+                >
+                  <span className="text-[#1a4d98] font-headline font-extrabold text-[26px] tracking-tighter leading-none">
+                    detik<span className="text-[#ff4f00]">com</span>
+                  </span>
+                </div>
 
-              <button 
-                onClick={() => setIsUserProfileOpen(true)}
-                aria-label="Profile" 
-                className="text-neutral-500 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
-              >
-                <User size={24} className="text-neutral-400" />
-              </button>
-            </header>
+                <button 
+                  onClick={() => setIsUserProfileOpen(true)}
+                  aria-label="Profile" 
+                  className="text-neutral-500 hover:bg-neutral-50 p-2 rounded-full transition-colors opacity-80 cursor-pointer"
+                >
+                  <User size={24} className="text-neutral-400" />
+                </button>
+              </header>
 
-            {/* ======================= TABS CATEGORIES (Joint sticky sub-nav, no complex offsets) ======================= */}
-            {activeBottomNav === 'home' && !activeArticleId && (
-              <nav className="bg-white border-t border-neutral-100 flex space-x-6 px-4 py-2.5 overflow-x-auto whitespace-nowrap no-scrollbar select-none shadow-[0_1px_3px_rgba(0,0,0,0.01)] items-center justify-start">
-                {(['Terupdate', 'Rekomendasi', 'Populer', 'Lifestyle'] as const).map((tab) => {
-                  const isActive = currentCategoryTab === tab;
-                  return (
-                    <button 
-                      key={tab}
-                      onClick={() => setCurrentCategoryTab(tab)}
-                      className={`font-headline text-[13px] font-extrabold pb-1.5 px-0.5 border-b-2 transition-all cursor-pointer ${
-                        isActive 
-                          ? 'text-[#1a4d98] border-[#1a4d98]' 
-                          : 'text-neutral-400 border-transparent hover:text-[#1a4d98]'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  );
-                })}
-              </nav>
-            )}
-          </div>
+              {/* ======================= TABS CATEGORIES (Joint sticky sub-nav, no complex offsets) ======================= */}
+              {activeBottomNav === 'home' && !activeArticleId && (
+                <nav className="bg-white border-t border-neutral-100 flex space-x-6 px-4 py-2.5 overflow-x-auto whitespace-nowrap no-scrollbar select-none shadow-[0_1px_3px_rgba(0,0,0,0.01)] items-center justify-start">
+                  {(['Terupdate', 'Rekomendasi', 'Populer', 'Lifestyle'] as const).map((tab) => {
+                    const isActive = currentCategoryTab === tab;
+                    return (
+                      <button 
+                        key={tab}
+                        onClick={() => setCurrentCategoryTab(tab)}
+                        className={`font-headline text-[13px] font-extrabold pb-1.5 px-0.5 border-b-2 transition-all cursor-pointer ${
+                          isActive 
+                            ? 'text-[#1a4d98] border-[#1a4d98]' 
+                            : 'text-neutral-400 border-transparent hover:text-[#1a4d98]'
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    );
+                  })}
+                </nav>
+              )}
+            </div>
+          )}
 
           {/* ======================= MAIN WORKSPACE LAYOUT ======================= */}
           <main className={`flex-grow ${activeBottomNav === 'milidetik' ? 'flex flex-col min-h-0' : ''}`}>
@@ -239,6 +310,19 @@ export default function App() {
                 onBack={() => setActiveArticleId(null)}
                 onAddComment={handleAddComment}
                 onLikeArticle={handleLikeArticle}
+                onSearchAi={(query) => {
+                  setAiInitialQuery(query);
+                  setIsAiChatOpen(true);
+                }}
+                onReadArticle={(id) => {
+                  setActiveArticleId(id);
+                  const scroller = document.querySelector('.overflow-y-auto');
+                  if (scroller) {
+                    scroller.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
               />
             ) : (
               <>
@@ -502,10 +586,16 @@ export default function App() {
                 {/* 3. MILIDETIK VERTICAL EXPERIENCE PRODUCT */}
                 {activeBottomNav === 'milidetik' && (
                   <div className="w-full h-full flex-grow">
-                    <MilidetikTab onReadArticle={(id) => {
-                      setActiveArticleId(id);
-                      setActiveBottomNav('home');
-                    }} />
+                    <MilidetikTab 
+                      onReadArticle={(id) => {
+                        setActiveArticleId(id);
+                        setActiveBottomNav('home');
+                      }} 
+                      onSearchAi={(query) => {
+                        setAiInitialQuery(query);
+                        setIsAiChatOpen(true);
+                      }}
+                    />
                   </div>
                 )}
 
@@ -584,48 +674,107 @@ export default function App() {
             reels={INITIAL_REELS}
             initialReelId={activeReelId}
             onClose={() => setActiveReelId(null)}
+            onSearchAi={(query) => {
+              setAiInitialQuery(query);
+              setIsAiChatOpen(true);
+            }}
           />
         )}
 
-        {/* ======================= PREMIUM SHORTCUT FLOATING KEY (detikAI launcher) ======================= */}
-        {!isAiChatOpen && (
-          <button 
-            onClick={() => {
-              setIsAiChatOpen(true);
-            }}
-            aria-label="Tanya detikAI"
-            className="fixed md:absolute bottom-20 right-4 w-14 h-14 bg-gradient-to-tr from-[#1a4d98] via-[#003e6f] to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center z-40 hover:scale-105 active:scale-95 group transition-transform active:rotate-3 select-none cursor-pointer"
+        {/* ======================= PREMIUM SHORTCUT FLOATING KEY (detikAI launcher - hidden on milidetik page or when inline card is visible) ======================= */}
+        {!isAiChatOpen && activeBottomNav !== 'milidetik' && (
+          <div 
+            className={`fixed md:absolute bottom-20 right-4 z-40 flex flex-col items-end gap-2.5 justify-end select-none pointer-events-none transition-all duration-300 ${
+              isAiCardIntersecting 
+                ? 'opacity-0 scale-50 pointer-events-none translate-y-10' 
+                : 'opacity-100 scale-100 translate-y-0'
+            }`}
           >
-            <span className="font-headline font-black text-lg tracking-tight font-extrabold text-white">AI</span>
-            {/* Pulsing visual outline */}
-            <div className="absolute inset-0 rounded-full border border-white/30 animate-ping opacity-25" />
-            <div className="absolute inset-0 rounded-full border border-white/10" />
-            {/* Micro Sparkle */}
-            <div className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-neutral-900 rounded-full p-0.5 shadow-sm text-[8px] font-extrabold scale-90 border border-white/10 flex items-center justify-center w-5 h-5 leading-none">
-              ✨
-            </div>
-          </button>
+            {/* Conversation turn style query suggestions bubble */}
+            <AnimatePresence mode="wait">
+              <motion.button
+                key={activeSuggestionIdx}
+                initial={{ opacity: 0, scale: 0.85, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAiInitialQuery(currentSuggestions[activeSuggestionIdx]);
+                  setIsAiChatOpen(true);
+                }}
+                type="button"
+                className="pointer-events-auto cursor-pointer max-w-[170px] xs:max-w-[200px] bg-neutral-900/95 border border-purple-500/30 text-white px-3 py-2 rounded-2xl rounded-br-none shadow-xl text-left text-[11px] font-medium leading-snug relative hover:bg-neutral-850 hover:border-purple-400 active:scale-98 transition-all duration-200"
+              >
+                {currentSuggestions[activeSuggestionIdx]}
+                {/* Micro Sparkle Indicator in bubble */}
+                <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-purple-500 rounded-full animate-ping opacity-75 border border-white/20" />
+                <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-purple-500 rounded-full border border-white/20" />
+                {/* Speech Bubble Tail pointing specifically down to the button */}
+                <div className="absolute -bottom-1.5 right-5 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-6 border-t-[6px] border-t-neutral-900/95" />
+              </motion.button>
+            </AnimatePresence>
+
+            <button 
+              onClick={() => {
+                setIsAiChatOpen(true);
+              }}
+              aria-label="Tanya detikAI"
+              type="button"
+              className="pointer-events-auto w-14 h-14 bg-gradient-to-tr from-[#1a4d98] via-[#003e6f] to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 group active:rotate-3 select-none cursor-pointer relative shrink-0"
+            >
+              <Sparkles className="w-6 h-6 text-white fill-white/20 group-hover:scale-115 transition-all duration-300" />
+              {/* Pulsing visual outline */}
+              <div className="absolute inset-0 rounded-full border border-white/30 animate-ping opacity-25" />
+              <div className="absolute inset-0 rounded-full border border-white/10" />
+              {/* Micro Sparkle */}
+              <div className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-neutral-900 rounded-full p-0.5 shadow-sm text-[8px] font-extrabold scale-90 border border-white/10 flex items-center justify-center w-5 h-5 leading-none">
+                ✨
+              </div>
+            </button>
+          </div>
         )}
 
         {/* ======================= FULLSCREEN DETIKAI COMPANION PANEL ======================= */}
-        {isAiChatOpen && (
-          <>
-            {/* Dark blurred backdrop on desktop screen */}
-            {!deviceFrameMode && (
-              <div 
-                onClick={() => setIsAiChatOpen(false)}
-                className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-50 cursor-pointer hidden md:block" 
-              />
-            )}
-            <div className={`z-50 flex flex-col justify-between overflow-hidden ${
-              deviceFrameMode 
-                ? 'absolute inset-0 bg-white rounded-2xl' 
-                : 'fixed inset-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[460px] md:h-[720px] bg-white md:rounded-3xl md:shadow-2xl md:border md:border-stone-150'
-            }`}>
-              <AICompanion onBackToHome={() => setIsAiChatOpen(false)} embedMode={true} />
-            </div>
-          </>
-        )}
+        <AnimatePresence>
+          {isAiChatOpen && (
+            <>
+              {/* Dark blurred backdrop on desktop screen */}
+              {!deviceFrameMode && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => {
+                    setIsAiChatOpen(false);
+                    setAiInitialQuery(undefined);
+                  }}
+                  className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-50 cursor-pointer hidden md:block" 
+                />
+              )}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className={`z-50 flex flex-col justify-between overflow-hidden ${
+                  deviceFrameMode 
+                    ? 'absolute inset-0 bg-white rounded-2xl' 
+                    : 'fixed inset-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[460px] md:h-[720px] bg-white md:rounded-3xl md:shadow-2xl md:border md:border-stone-150'
+                }`}
+              >
+                <AICompanion 
+                  onBackToHome={() => {
+                    setIsAiChatOpen(false);
+                    setAiInitialQuery(undefined);
+                  }} 
+                  embedMode={true} 
+                  initialQuery={aiInitialQuery}
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* ======================= FLOATING BREAKING NEWS TICKER ======================= */}
         {!dismissedBreaking && !activeArticleId && activeBottomNav !== 'milidetik' && (
@@ -650,14 +799,22 @@ export default function App() {
         )}
 
         {/* ======================= BOTTOM MOBILE NAVIGATION DOCK ======================= */}
-        <nav className={`bg-white text-neutral-400 border-t border-neutral-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] ${
+        <nav className={`${
+          activeBottomNav === 'milidetik'
+            ? 'bg-[#121212] border-t border-neutral-900 shadow-[0_-4px_12px_rgba(0,0,0,0.4)]'
+            : 'bg-white border-t border-neutral-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]'
+        } ${
           deviceFrameMode ? 'absolute' : 'fixed'
-        } bottom-0 left-0 right-0 w-full flex justify-around items-center px-1 py-1.5 pb-safe z-40 select-none`}>
+        } bottom-0 left-0 right-0 w-full flex justify-around items-center px-1 py-1.5 pb-safe z-40 select-none transition-colors duration-300`}>
           
           <button 
             onClick={() => handleNavSelect('home')}
             className={`flex flex-col items-center p-1.5 rounded-lg transition-colors w-15 cursor-pointer ${
-              activeBottomNav === 'home' ? 'text-[#1a4d98] font-bold scale-102' : 'hover:bg-neutral-50/50'
+              activeBottomNav === 'home' 
+                ? 'text-[#1a4d98] font-bold scale-102' 
+                : activeBottomNav === 'milidetik'
+                  ? 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/40'
+                  : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50'
             }`}
           >
             <Home size={18} className={activeBottomNav === 'home' ? 'fill-current' : ''} />
@@ -667,7 +824,11 @@ export default function App() {
           <button 
             onClick={() => handleNavSelect('explore')}
             className={`flex flex-col items-center p-1.5 rounded-lg transition-colors w-15 cursor-pointer ${
-              activeBottomNav === 'explore' ? 'text-[#1a4d98] font-bold scale-102' : 'hover:bg-neutral-50/50'
+              activeBottomNav === 'explore' 
+                ? 'text-[#1a4d98] font-bold scale-102' 
+                : activeBottomNav === 'milidetik'
+                  ? 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/40'
+                  : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50'
             }`}
           >
             <Search size={18} className={activeBottomNav === 'explore' ? 'stroke-3' : ''} />
@@ -677,17 +838,23 @@ export default function App() {
           <button 
             onClick={() => handleNavSelect('milidetik')}
             className={`flex flex-col items-center p-1.5 rounded-lg transition-colors w-15 relative cursor-pointer ${
-              activeBottomNav === 'milidetik' ? 'text-purple-600 font-bold scale-102' : 'hover:bg-neutral-50/50'
+              activeBottomNav === 'milidetik' 
+                ? 'text-purple-400 font-bold scale-102' 
+                : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50'
             }`}
           >
-            <Sparkles size={18} className={activeBottomNav === 'milidetik' ? 'text-purple-600 fill-purple-100 animate-pulse' : 'text-purple-500'} />
+            <Sparkles size={18} className={activeBottomNav === 'milidetik' ? 'text-purple-400 fill-purple-550/10 animate-pulse' : 'text-purple-500'} />
             <span className="text-[10px] mt-0.5 truncate text-center w-full">Milidetik</span>
           </button>
 
           <button 
             onClick={() => handleNavSelect('category')}
             className={`flex flex-col items-center p-1.5 rounded-lg transition-colors w-15 cursor-pointer ${
-              activeBottomNav === 'category' ? 'text-[#1a4d98] font-bold scale-102' : 'hover:bg-neutral-50/50'
+              activeBottomNav === 'category' 
+                ? 'text-[#1a4d98] font-bold scale-102' 
+                : activeBottomNav === 'milidetik'
+                  ? 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/40'
+                  : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50'
             }`}
           >
             <Grid size={18} />
@@ -697,7 +864,11 @@ export default function App() {
           <button 
             onClick={() => handleNavSelect('video')}
             className={`flex flex-col items-center p-1.5 rounded-lg transition-colors w-15 cursor-pointer ${
-              activeBottomNav === 'video' ? 'text-[#1a4d98] font-bold scale-102' : 'hover:bg-neutral-50/50'
+              activeBottomNav === 'video' 
+                ? 'text-[#1a4d98] font-bold scale-102' 
+                : activeBottomNav === 'milidetik'
+                  ? 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/40'
+                  : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50'
             }`}
           >
             <PlayCircle size={18} />
